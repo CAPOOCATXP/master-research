@@ -72,6 +72,75 @@ codesign --force --sign - "$BIN/python3.12-mps"     # adhoc, 无 hardened runtim
 
 重新签名后 `flags=0x2(adhoc)`, `TeamIdentifier=not set`，库校验关闭，torch 正常导入。
 
+---
+
+## 2b. 第二个安装阻塞：`.pth` 被静默跳过 / Second blocker: silently skipped .pth
+
+**这个更隐蔽，因为它不报任何错。**
+
+### 症状 Symptom
+
+`pip install -e .` 报告成功，`.pth` 文件也确实写在
+`.venv/lib/python3.12/site-packages/` 里、内容正确、指向的目录存在，
+但 `import master_research` 报 `ModuleNotFoundError`。
+把同一个文件**换个文件名复制一份**，就能正常导入。
+
+### 根因 Root cause
+
+本运行时 Python 的 `site.py` 里，`addpackage()` 比标准库多了一段检查：
+
+```python
+st = os.lstat(fullname)
+if ((getattr(st, 'st_flags', 0) & stat.UF_HIDDEN) or
+    (getattr(st, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_HIDDEN)):
+    _trace(f"Skipping hidden .pth file: {fullname!r}")
+    return
+```
+
+也就是说：**带 macOS `UF_HIDDEN` 标志的 `.pth` 会被直接跳过，而且不报错。**
+实测这两个文件都中招：
+
+```
+__editable__.master_research-0.1.0.pth   UF_HIDDEN=True   st_flags=0x8040
+distutils-precedence.pth                 UF_HIDDEN=True   st_flags=0x8040
+```
+
+### 解决 Resolution
+
+**临时（会自己失效）：**
+
+```bash
+find .venv -name "*.pth" -exec chflags nohidden {} \;
+```
+
+**⚠️ 这个标志会自动回来。** 实测清理后过了一段时间再检查，
+两个 `.pth` 的 `UF_HIDDEN` 又变回 `True`（`st_flags=0x8040`），
+而文件内容没有任何变化。所以 `chflags` **不是持久的修法**，
+不能作为"环境已修好"的依据。
+
+**持久（推荐）：不要依赖 `.pth`。**
+
+仓库根目录的 `conftest.py` 显式把 `src/` 插入 `sys.path`，
+所有 `scripts/*.py` 也各自做同样的事。因此：
+
+- `pytest` 和所有脚本**都**不依赖 editable 安装是否生效。
+- `pip install -e .` 仍保留，因为它是标准的打包方式，
+  而且能让 `import master_research` 在交互式解释器里工作（只要标志是干净的）。
+
+`env/setup_macos_arm64.sh` 的 `fix_pth_flags()` 仍会在安装后清理一次，
+但它被明确定位为**尽力而为**，不是正确性依赖。
+
+### 为什么值得记下来 Why this is recorded
+
+1. **它是静默失败。** 安装脚本说成功，文件也在，只有 import 失败——
+   这会让人去怀疑包结构、`pyproject.toml`、Python 版本，全都不是原因。
+2. **标志会自己回来，所以"清一次就好了"是错的结论。**
+   真正的修法是降低对 `.pth` 的依赖。
+3. **任何依赖 `.pth` 的机制都可能中招**：editable 安装、命名空间包、
+   `sitecustomize`、`usercustomize`。
+4. **因此测试不应该依赖 editable 安装。** 仓库根目录的 `conftest.py`
+   显式把 `src/` 加入 `sys.path`，让 `pytest` 不依赖 `.pth` 是否被加载。
+
 ### 代价与风险 Cost and risk
 
 - 这是**绕过**签名策略，不是修复它。属于本机工作环境适配，不进入研究结论。

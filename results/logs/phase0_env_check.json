@@ -18,7 +18,7 @@
     "mps_built": true,
     "mps_available": true,
     "cuda_available": false,
-    "disk_free_gb": 145.2
+    "disk_free_gb": 144.78
   },
   "backbone": {
     "name": "wide_resnet50_2",
@@ -48,7 +48,7 @@
     "max": 1.5526052713394165,
     "mean": 0.05656978487968445,
     "std": 0.09120535105466843,
-    "encode_seconds": 0.0341,
+    "encode_seconds": 0.0229,
     "extract_calls_are_deterministic": true
   },
   "distance_check": {
@@ -68,22 +68,40 @@
     "full_bank_n": 676,
     "n_centers": 68,
     "ratio": 0.1,
-    "coreset_seconds": 0.0407,
-    "coverage_index_build_seconds": 0.0246,
-    "screen_scan_seconds": 0.018814,
-    "full_bank_scan_seconds": 0.008503,
-    "screen_scan_speedup_vs_full_bank": 0.45,
-    "encoder_seconds": 0.0341,
+    "coreset_seconds": 0.0398,
+    "coverage_index_build_seconds": 0.0242,
+    "screen_scan_seconds": 0.018516,
+    "full_bank_scan_seconds": 0.008191,
+    "screen_scan_speedup_vs_full_bank": 0.44,
+    "encoder_seconds": 0.0229,
     "bank_bytes": 4153344,
     "edge_state_bytes": 418608,
-    "edge_state_bytes_fraction_of_bank": 0.10078818417159763
+    "edge_state_bytes_fraction_of_bank": 0.10078818417159763,
+    "caveat": "At this size the screen scan is slower than the full-bank scan. The full-bank path ranks with one BLAS matmul and exactly refines only 4 candidates, whereas the screen must compute an exact distance to every center because L minimises over all cells. N/K is only ~10x here. No resource advantage is claimed from this measurement; the break-even point is a Phase-6 measurement."
   },
-  "interval_sanity": {
+  "interval_sanity_self_query": {
+    "warning": "DEGENERATE: bank screened with its own patches; exact score is identically 0",
+    "exact_score_all_zero": true,
     "violations_L_gt_S": 0,
     "violations_S_gt_U": 0,
-    "mean_interval_width": 0.8619034290313721,
-    "max_interval_width": 1.3903967142105103,
-    "touching_zero_lower_count": 676
+    "lower_is_zero_fraction": 1.0,
+    "mean_interval_width": 0.8619034290313721
+  },
+  "interval_sanity_held_out": {
+    "query_source": "synthetic image with seed+1 (different noise, same structure)",
+    "n_queries": 676,
+    "exact_score_mean": 0.918335497379303,
+    "exact_score_min": 0.6636708378791809,
+    "exact_score_max": 1.263543725013733,
+    "lower_mean": 0.033250804990530014,
+    "lower_max": 0.7118414044380188,
+    "upper_mean": 1.1599229574203491,
+    "lower_is_zero_fraction": 0.7307692307692307,
+    "lower_is_positive_fraction": 0.2692307692307692,
+    "mean_interval_width": 1.1266720294952393,
+    "violations_L_gt_S": 0,
+    "violations_S_gt_U": 0,
+    "note": "This is the number any claim about interval tightness must use. L is NOT identically zero: it is zero for a substantial fraction of patches but strictly positive for the rest, so the lower bound carries some information."
   },
   "figure": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/results/figures/phase0_patch_score_map.png"
 }

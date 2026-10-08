@@ -241,7 +241,13 @@ def main() -> int:
     index = build_coverage_index(bank, centers, guard=guard)
     build_seconds = time.perf_counter() - t0
 
-    queries = feats  # screen the same image; timing only
+    # NOTE (corrected 2026-10-08): the timing below deliberately screens the bank
+    # with its *own* patches, because that is a pure timing vehicle. It must NOT
+    # be used for any claim about interval width: screening a bank against itself
+    # makes the exact score identically zero, so ``L = 0`` follows trivially and
+    # says nothing. Section 6 does the interval check properly, with held-out
+    # queries from a second image.
+    queries = feats
     t0 = time.perf_counter()
     pb = patch_bounds(queries, index)
     screen_seconds = time.perf_counter() - t0
@@ -289,20 +295,70 @@ def main() -> int:
     )
 
     # -------------------------------------------------- 6. interval sanity
+    # Two contrasts, because they answer different questions and only the second
+    # one is scientifically meaningful:
+    #
+    #  (a) SELF-QUERY: screen the bank with its own patches. The exact score is
+    #      identically 0, so L = 0 is forced by the definition L <= s_M and tells
+    #      us nothing at all. Reported only to make the degeneracy explicit.
+    #  (b) HELD-OUT: screen patches of a *different* image against the bank. This
+    #      is the situation the method actually faces, and it is the number that
+    #      any claim about interval width must be based on.
     from master_research.bounds import PatchBounds
 
-    pb_exact = PatchBounds(lower=pb.lower, upper=pb.upper, exact=exact)
-    report["interval_sanity"] = {
-        "violations_L_gt_S": int((pb.lower > exact).sum()),
-        "violations_S_gt_U": int((exact > pb.upper).sum()),
+    self_exact = min_distances(feats, bank, refine=True)
+    report["interval_sanity_self_query"] = {
+        "warning": "DEGENERATE: bank screened with its own patches; exact score is identically 0",
+        "exact_score_all_zero": bool((self_exact == 0).all()),
+        "violations_L_gt_S": int((pb.lower > self_exact).sum()),
+        "violations_S_gt_U": int((self_exact > pb.upper).sum()),
+        "lower_is_zero_fraction": float((pb.lower == 0).mean()),
         "mean_interval_width": float((pb.upper - pb.lower).mean()),
-        "max_interval_width": float((pb.upper - pb.lower).max()),
-        "touching_zero_lower_count": int((pb.lower <= 0).sum()),
+    }
+
+    query_image = synthetic_image(WR50_LAYER23.image_size, args.seed + 1)
+    query_batch = image_to_tensor(
+        query_image,
+        WR50_LAYER23.resize,
+        WR50_LAYER23.image_size,
+        WR50_LAYER23.normalise_mean,
+        WR50_LAYER23.normalise_std,
+    ).to(device)
+    query_feats = extract_patch_embeddings(model, query_batch, WR50_LAYER23)
+
+    held_exact = min_distances(query_feats, bank, refine=True)
+    held_pb = patch_bounds(query_feats, index, exact_scores=held_exact)
+    held_width = held_pb.upper - held_pb.lower
+    report["interval_sanity_held_out"] = {
+        "query_source": "synthetic image with seed+1 (different noise, same structure)",
+        "n_queries": int(query_feats.shape[0]),
+        "exact_score_mean": float(held_exact.mean()),
+        "exact_score_min": float(held_exact.min()),
+        "exact_score_max": float(held_exact.max()),
+        "lower_mean": float(held_pb.lower.mean()),
+        "lower_max": float(held_pb.lower.max()),
+        "upper_mean": float(held_pb.upper.mean()),
+        "lower_is_zero_fraction": float((held_pb.lower == 0).mean()),
+        "lower_is_positive_fraction": float((held_pb.lower > 0).mean()),
+        "mean_interval_width": float(held_width.mean()),
+        "violations_L_gt_S": int((held_pb.lower > held_exact).sum()),
+        "violations_S_gt_U": int((held_exact > held_pb.upper).sum()),
+        "note": (
+            "This is the number any claim about interval tightness must use. L is NOT "
+            "identically zero: it is zero for a substantial fraction of patches but "
+            "strictly positive for the rest, so the lower bound carries some information."
+        ),
     }
     print(
-        f"[interval] violations L>S: {report['interval_sanity']['violations_L_gt_S']}, "
-        f"S>U: {report['interval_sanity']['violations_S_gt_U']}, "
-        f"mean width {report['interval_sanity']['mean_interval_width']:.4f}"
+        f"[interval] held-out queries: L=0 for "
+        f"{report['interval_sanity_held_out']['lower_is_zero_fraction'] * 100:.1f}% of patches, "
+        f"L max {held_pb.lower.max():.4f}, mean width {held_width.mean():.4f}, "
+        f"violations L>S {report['interval_sanity_held_out']['violations_L_gt_S']}, "
+        f"S>U {report['interval_sanity_held_out']['violations_S_gt_U']}"
+    )
+    print(
+        f"[interval] (self-query control is degenerate: exact score all zero = "
+        f"{report['interval_sanity_self_query']['exact_score_all_zero']})"
     )
 
     # ------------------------------------------------------------- 7. figure
@@ -312,24 +368,31 @@ def main() -> int:
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        score_map = exact.reshape(gh, gw)
-        lower_map = pb.lower.reshape(gh, gw)
-        upper_map = pb.upper.reshape(gh, gw)
+        # Deliberately plot the HELD-OUT result, not the self-query one: the
+        # self-query panel would show an all-black lower bound that is an artefact.
+        score_map = held_exact.reshape(gh, gw)
+        lower_map = held_pb.lower.reshape(gh, gw)
+        upper_map = held_pb.upper.reshape(gh, gw)
         fig, axes = plt.subplots(1, 4, figsize=(15, 4))
-        axes[0].imshow(np.asarray(image))
-        axes[0].set_title("input " + ("(synthetic)" if args.image is None else "(real)"))
+        axes[0].imshow(np.asarray(query_image))
+        axes[0].set_title("held-out query image\n(synthetic, seed+1)")
         im1 = axes[1].imshow(score_map, cmap="magma")
         axes[1].set_title(f"exact $s_M(q)$\nmax={score_map.max():.3f}")
-        axes[2].imshow(lower_map, cmap="magma")
-        axes[2].set_title(f"lower bound $L(q)$\nmax={lower_map.max():.3f}")
         im3 = axes[3].imshow(upper_map, cmap="magma")
         axes[3].set_title(f"upper bound $U(q)$\nmax={upper_map.max():.3f}")
+        im2 = axes[2].imshow(lower_map, cmap="magma")
+        axes[2].set_title(
+            f"lower bound $L(q)$\nmax={lower_map.max():.3f}\n"
+            f"(zero at {(held_pb.lower == 0).mean() * 100:.0f}% of patches)"
+        )
         for ax in axes:
             ax.axis("off")
         fig.colorbar(im1, ax=axes[1], fraction=0.046)
+        fig.colorbar(im2, ax=axes[2], fraction=0.046)
         fig.colorbar(im3, ax=axes[3], fraction=0.046)
         fig.suptitle(
-            f"Phase 0 sanity — {WR50_LAYER23.encoder_id()} — {image_source} — timing vehicle, not a result",
+            f"Phase 0 sanity — {WR50_LAYER23.encoder_id()} — "
+            f"bank from image A, queries from image B — timing vehicle, not a detection result",
             fontsize=11,
         )
         fig.tight_layout()

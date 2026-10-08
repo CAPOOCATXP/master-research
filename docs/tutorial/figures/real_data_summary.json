@@ -1,0 +1,27 @@
+{
+  "bank_patches": 676,
+  "query_patches": 676,
+  "dim": 1536,
+  "n_centers": 68,
+  "held_out": {
+    "exact_mean": 0.918335497379303,
+    "exact_min": 0.6636708378791809,
+    "exact_max": 1.263543725013733,
+    "L_mean": 0.033250804990530014,
+    "L_max": 0.7118414044380188,
+    "L_zero_fraction": 0.7307692307692307,
+    "U_mean": 1.1599229574203491,
+    "mean_width": 1.1266720294952393,
+    "violations_L_gt_S": 0,
+    "violations_S_gt_U": 0
+  },
+  "self_query_control": {
+    "exact_all_zero": true,
+    "L_zero_fraction": 1.0,
+    "note": "degenerate: L=0 is forced here, not discovered"
+  },
+  "geometry": {
+    "mean_radius": 1.1595443487167358,
+    "mean_nearest_center_distance": 1.1599217653274536
+  }
+}

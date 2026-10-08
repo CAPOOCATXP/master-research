@@ -79,6 +79,24 @@ make_venv() {
   log "installing the package in editable mode"
   .venv/bin/python -m pip install --quiet -e .
   .venv/bin/python -m pip install --quiet pytest
+  fix_pth_flags
+}
+
+fix_pth_flags() {
+  # The bundled Python's site.addpackage() SKIPS .pth files that carry the
+  # macOS UF_HIDDEN flag, silently. pip-written .pth files can end up with
+  # st_flags=0x8040 here, which makes the editable install vanish with no error
+  # (``ModuleNotFoundError: No module named 'master_research'`` while the
+  # package is plainly installed). Clear the flag on every .pth in the venv.
+  # See env/environment_lock.md §2b.
+  local f flags
+  while IFS= read -r -d '' f; do
+    flags="$(ls -lO "$f" 2>/dev/null | awk '{print $5}')"
+    case "$flags" in
+      *hidden*)
+        chflags nohidden "$f" 2>/dev/null && log "cleared UF_HIDDEN on $(basename "$f")" ;;
+    esac
+  done < <(find .venv -name "*.pth" -print0 2>/dev/null)
 }
 
 check() {

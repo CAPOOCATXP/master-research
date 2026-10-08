@@ -50,6 +50,9 @@ bash env/setup_macos_arm64.sh
 
 所有脚本都会把 JSON 日志写到 `results/logs/`，并把 `PASS`/`FAIL` 打到 stdout。
 
+**第一次接触这个方向？** 先看 `docs/tutorial/how_it_works.md` ——
+它用 7 张图从零解释整个项目在做什么、代码怎么组织、以及我踩过的坑。
+
 ---
 
 ## 目录结构 / Layout
@@ -57,11 +60,12 @@ bash env/setup_macos_arm64.sh
 ```
 master-research/
 ├── README.md                    本文件
+├── conftest.py                  让 pytest 不依赖 editable 安装（见 env/ §2b）
 ├── pyproject.toml               可安装包 (src layout)
 ├── requirements/                base.txt / dev.txt（不锁版本，锁版本见 env/）
 ├── env/                         Phase 0 交付物
 │   ├── hardware_inventory.md      硬件与数据清单 + 显式 UNKNOWN 登记
-│   ├── environment_lock.md        解析出的版本 + 安装阻塞与解决
+│   ├── environment_lock.md        解析出的版本 + 两个安装阻塞与解决
 │   ├── environment_lock_freeze.txt  完整 pip freeze
 │   ├── repos.lock.yaml           钉住的官方仓库 commit 与权重 sha256
 │   └── setup_macos_arm64.sh      可复现安装脚本
@@ -79,6 +83,10 @@ master-research/
 │   └── 03_build_manifests.py        三类别角色清单 + 互斥性校验
 ├── tests/                       66 个单元测试（含针对真实故障的回归测试）
 ├── docs/
+│   ├── tutorial/                  ★ 新手图解：how_it_works.md + 7 张图
+│   │   ├── how_it_works.md        从零解释整个项目在干什么
+│   │   ├── make_figures.py        生成这 7 张图的脚本
+│   │   └── figures/               图（第 6、7 张用真实骨干特征算的）
 │   ├── plan/scope_and_claims.md   什么算证据、什么不许声称（预注册）
 │   ├── protocol/numerics_contract.md  数值契约（精度、护栏、相等情形、空单元）
 │   ├── notes/                    阅读笔记、手算例子、五个未解决问题
@@ -115,24 +123,38 @@ master-research/
 **Week 1 完成了 Phase 0 + Phase 1。** 两个真实故障已定位并修复，两个负面结果
 已如实记录，不隐藏：
 
-1. **安装阻塞（已解决）** — DSH 运行时 Python 带 hardened runtime
+1. **安装阻塞 ①（已解决）** — DSH 运行时 Python 带 hardened runtime
    (`flags=0x10000(runtime)`, TeamID `NAN929V4UM`)，拒绝加载 PyTorch 的
    ad-hoc 签名 dylib。解决方法是在同目录复制 Python 并 ad-hoc 重签名。
    详见 `env/environment_lock.md` §2。
+
+1b. **安装阻塞 ②（已解决）** — 该运行时 Python 的 `site.py` 会**静默跳过**
+   带 macOS `UF_HIDDEN` 标志的 `.pth` 文件（实测 `st_flags=0x8040`）。
+   结果是 `pip install -e .` 报告成功、文件也在、但 `import master_research`
+   报 `ModuleNotFoundError`。修法是 `chflags nohidden`（已写进 setup 脚本），
+   并加 `conftest.py` 让测试不依赖 editable 安装。
+   详见 `env/environment_lock.md` §2b。
 
 2. **下界 bug（已修复）** — 第一版 `bounds._dist_to_centers` 用了
    `|a|²+|b|²−2ab` 展开式，在 1536 维特征上灾难性抵消，
    导致 **676 个 patch 中有 31 个出现 `L > s_M`**（无效下界，会制造假证书）。
    改为直接相减后违规数为 0。回归测试在 `tests/test_bounds.py`。
 
-3. **负面结果 1：`L` 在真实特征上恒为 0。** 676/676 个 patch 的下界都是 0，
-   意味着 screening 的 ALARM 分支永不触发、半径对判决无影响。详见
-   `docs/reports/week01_report.md`。
+3. **区间宽度与信号范围同量级。** 留出查询下，`L = 0` 的 patch 占 **73.1%**
+   （不是全部），`L` 最大 0.7118；平均区间宽度 **1.1267**，而真实分数的整个
+   取值范围只有 **0.6637–1.2635（跨度 0.60）**。所以区间比信号本身还宽，
+   ALARM 侧在多数 patch 上无法本地判定。详见 `docs/reports/week01_report.md`。
 
-4. **负面结果 2：小 `N/K` 时 screening 比完整银行慢**（18.8 ms vs 8.5 ms）。
+4. **已更正的方法学错误。** 第一版 Phase 0 脚本用**银行自身的 patch** 当查询，
+   于是 `s_M` 恒为 0，`L = 0` 由 `L ≤ s_M` 强制成立 —— 那是同义反复，不是发现。
+   改为用另一张图的 patch 当查询后才得到上面第 3 条的真实数字。
+   脚本现在同时输出 `interval_sanity_self_query`（标注为 `DEGENERATE`）
+   与 `interval_sanity_held_out` 两个对照。
+
+5. **负面结果 2：小 `N/K` 时 screening 比完整银行慢**（18.0 ms vs 8.2 ms）。
    原因是完整银行用 BLAS 排序 + 少量精化，而 `L` 要求对每个中心算精确距离。
 
-5. **架构发现：官方 PatchCore 仓库没有实现论文 Eq. 7 的加权分数。**
+6. **架构发现：官方 PatchCore 仓库没有实现论文 Eq. 7 的加权分数。**
    `NearestNeighbourScorer.predict` 是 `np.mean(...)`，
    `PatchMaker.score` 是 `torch.max`。所以"复现 PatchCore"与
    "实现 max-score 参考检测器"必须分开命名。
