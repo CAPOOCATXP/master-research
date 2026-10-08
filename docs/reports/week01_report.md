@@ -64,7 +64,7 @@ data split       PROVISIONAL_NO_DATA (MVTec 未下载；清单为占位符)
 
 **主图：**
 
-![Phase 0 patch score map, exact score, lower bound, upper bound](../results/figures/phase0_patch_score_map.png)
+![Phase 0 patch score map, exact score, lower bound, upper bound](../../results/figures/phase0_patch_score_map.png)
 
 （左起：输入图（合成，数据未到）；精确 `s_M(q)`；下界 `L(q)`；上界 `U(q)`。
 注意第三张图**整体为黑**——这正是下面最重要的负面结果。）
