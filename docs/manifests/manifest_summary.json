@@ -1,0 +1,95 @@
+{
+  "stage": "immediate_assignment_4_manifests",
+  "seed": 0,
+  "categories": {
+    "bottle": {
+      "provenance": "PROVISIONAL_NO_DATA",
+      "n_normal_train": 209,
+      "checks": {
+        "total_images": 209,
+        "role_counts": {
+          "reference_fit": 125,
+          "development": 42,
+          "final_calibration": 42
+        },
+        "any_image_in_more_than_one_role": false,
+        "duplicated_ids": [],
+        "any_role_empty": false,
+        "roles_sum_to_total": true,
+        "roles_pairwise_disjoint": true,
+        "all_roles_nonempty": true,
+        "PASS": true,
+        "expected_count": 209,
+        "count_matches_published": true
+      },
+      "csv": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/docs/manifests/bottle_roles.csv",
+      "fewshot_csv": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/docs/manifests/bottle_fewshot.csv",
+      "few_shot_pool_size": 125,
+      "few_shot_available": {
+        "1": true,
+        "4": true,
+        "16": true
+      }
+    },
+    "tile": {
+      "provenance": "PROVISIONAL_NO_DATA",
+      "n_normal_train": 230,
+      "checks": {
+        "total_images": 230,
+        "role_counts": {
+          "reference_fit": 138,
+          "development": 46,
+          "final_calibration": 46
+        },
+        "any_image_in_more_than_one_role": false,
+        "duplicated_ids": [],
+        "any_role_empty": false,
+        "roles_sum_to_total": true,
+        "roles_pairwise_disjoint": true,
+        "all_roles_nonempty": true,
+        "PASS": true,
+        "expected_count": 230,
+        "count_matches_published": true
+      },
+      "csv": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/docs/manifests/tile_roles.csv",
+      "fewshot_csv": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/docs/manifests/tile_fewshot.csv",
+      "few_shot_pool_size": 138,
+      "few_shot_available": {
+        "1": true,
+        "4": true,
+        "16": true
+      }
+    },
+    "screw": {
+      "provenance": "PROVISIONAL_NO_DATA",
+      "n_normal_train": 320,
+      "checks": {
+        "total_images": 320,
+        "role_counts": {
+          "reference_fit": 192,
+          "development": 64,
+          "final_calibration": 64
+        },
+        "any_image_in_more_than_one_role": false,
+        "duplicated_ids": [],
+        "any_role_empty": false,
+        "roles_sum_to_total": true,
+        "roles_pairwise_disjoint": true,
+        "all_roles_nonempty": true,
+        "PASS": true,
+        "expected_count": 320,
+        "count_matches_published": true
+      },
+      "csv": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/docs/manifests/screw_roles.csv",
+      "fewshot_csv": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/docs/manifests/screw_fewshot.csv",
+      "few_shot_pool_size": 192,
+      "few_shot_available": {
+        "1": true,
+        "4": true,
+        "16": true
+      }
+    }
+  },
+  "provenance": "PROVISIONAL_NO_DATA",
+  "all_categories_pass": true
+}

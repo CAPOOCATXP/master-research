@@ -1,0 +1,131 @@
+# 仓库与权重锁定 / Pinned Repositories and Weights
+
+**记录日期 / Recorded:** 2026-10-08
+**要求来源 / Requirement:** Research Plan Part A6 — "Record each repository commit,
+weight checksum, resolved dependency versions and command configuration."
+
+本文件记录**实际观测到的** commit 与校验和。不是计划，不是从 README 抄来的。
+
+---
+
+## 1. 仓库 / Repositories
+
+克隆位置：`third_party/`（在 `.gitignore` 中；由 `env/setup_macos_arm64.sh` 重建）。
+记录的是 **commit**，不是分支名。
+
+### R1 — PatchCore
+
+```yaml
+name: patchcore-inspection
+url: https://github.com/amazon-science/patchcore-inspection.git
+commit: fcaa92f124fb1ad74a7acf56726decd4b27cbcad
+commit_date: "2023-03-06T11:20:39+01:00"
+subject: "Remove wrong symbolic link"
+branch_at_clone: main
+license: Apache-2.0
+clone_verified: true
+executed: false        # 已 clone 并阅读，尚未运行其 CLI
+```
+
+### R2 — AnomalyDINO
+
+```yaml
+name: AnomalyDINO
+url: https://github.com/dammsi/AnomalyDINO.git
+commit: b9d1c2648e3a5247437d4d953d907a8f3d994457
+commit_date: "2025-12-17T12:49:27+00:00"
+subject: "minor updates"
+branch_at_clone: main
+license: see repo LICENSE (not itemised)   # UNKNOWN
+clone_verified: true
+executed: false
+```
+
+**注意 / Note.** AnomalyDINO 仓库**没有 `master` 分支**，只有 `main`。
+对 `master` 的查询会返回 404，不要误判为仓库不存在。
+
+### 未克隆但已识别 / Identified but not cloned
+
+| 资源 | 位置 | 为何未克隆 |
+|---|---|---|
+| EfficientAD (R3) | `github.com/nelson1425/EfficientAD` | 论文正文未印出代码链接，出处**未被论文本身确认**；维护版在 anomalib。Phase 7 才需要。 |
+| MH-PatchCore (R5) | `github.com/NickF93/MH-PatchCore` | Phase 7 对照，待确认可复现性。 |
+| SPARC (R6) | **无官方仓库** | 论文 §4.1.5 原文："Code and configurations will be released upon acceptance"。 |
+| ContCore (R13) | 作者项目页 | 仅为新颖性线索。 |
+
+---
+
+## 2. 权重 / Weights
+
+本阶段只下载并校验了一个权重，即 PatchCore 文档中指定的骨干。
+
+```yaml
+name: wide_resnet50_2
+source_enum: torchvision.models.Wide_ResNet50_2_Weights.IMAGENET1K_V1
+download_url: https://download.pytorch.org/models/wide_resnet50_2-95faca4d.pth
+path: ~/.cache/torch/hub/checkpoints/wide_resnet50_2-95faca4d.pth
+bytes: 138223492
+sha256: 95faca4d11227dddf8633dbb5ff6c8a9003c1aa5b8945c73834b8007b10950b8
+hash_method: sha256, 1 MiB streaming chunks
+hash_verified: true
+```
+
+文件名中的 `95faca4d` 与校验和前 8 位一致，可作为下载完整性的快速旁证，
+但**以完整 sha256 为准**。
+
+### 本阶段未下载 / Not downloaded in this phase
+
+| 权重 | 用途 | 何时需要 |
+|---|---|---|
+| DINOv2 ViT-S/14 | AnomalyDINO (R2) 的冻结编码器 | Phase 2 |
+| EfficientAD teacher_small/medium.pth | R3 对照 | Phase 7 |
+| PatchCore 预训练模型 | 官方 `sample_evaluation.sh` | Phase 2 |
+
+---
+
+## 3. 特征提取配置 / Feature-extraction configuration
+
+必须与权重一起锁定，否则"同一编码器"这句话没有意义。
+
+```yaml
+encoder_id: "wide_resnet50_2:IMAGENET1K_V1:layer2+layer3"
+preprocessing_id: "resize256-center224-ps3-st1-norm0.485-0.456-0.406_0.229-0.224-0.225"
+image_size: 224
+resize: 256
+patch_size: 3
+patch_stride: 1
+normalise_mean: [0.485, 0.456, 0.406]
+normalise_std:  [0.229, 0.224, 0.225]
+observed_feature_shape: [676, 1536]   # 26x26 patches, layer2(512)+layer3(1024)
+```
+
+**与官方仓库的关系 / Relation to the official repo.** 这组设置取自
+`third_party/patchcore-inspection/README.md` 与 `sample_training.sh` 的文档化命令
+(`-b wideresnet50 -le layer2 -le layer3 --patchsize 3 --resize 256 --imagesize 224`)。
+
+**明确不是复现 / Explicitly not a reproduction.** 本项目实现的**分数**是
+Part A6 指定的 "PatchCore-style max-distance detector"：欧氏最近距离 + 逐 patch 取
+最大。这**不是**原论文的加权 PatchCore 分数，也**不是**官方仓库实际实现的分数。
+两个独立的差异必须都记住：
+
+1. 论文 Eq. 7 的 reweighting 项：`s = (1 − exp(d*)/Σ_{m∈N_b(m*)} exp(d(m))) · s*`，
+   其中 `N_b(m*)` 是**参考侧匹配点 m\*** 的 b 个近邻，而非测试 patch 的近邻。
+2. 官方仓库**根本没有实现 Eq. 7**。`NearestNeighbourScorer.predict` 是
+   `np.mean(query_distances, axis=-1)`，`PatchMaker.score` 是 `torch.max`。
+   已在 `fcaa92f` 的 `src/patchcore/` 中确认无 reweighting 代码。
+
+因此"复现 PatchCore"与"实现 max-score 参考检测器"是本项目里两件不同的事，
+输出必须分开命名。Phase 2 的门槛报告需要明确这一点。
+
+---
+
+## 4. 复现命令 / Reproduction commands
+
+```bash
+# 重建两个仓库到记录的 commit
+bash env/setup_macos_arm64.sh --repos-only
+
+# 校验权重
+shasum -a 256 ~/.cache/torch/hub/checkpoints/wide_resnet50_2-95faca4d.pth
+# 期望: 95faca4d11227dddf8633dbb5ff6c8a9003c1aa5b8945c73834b8007b10950b8
+```

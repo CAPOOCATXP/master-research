@@ -1,0 +1,6 @@
+# Development / verification requirements.
+# Kept separate from base.txt so that a reviewer can tell what is needed to RUN
+# the pipeline versus what is needed to CHECK it.
+-r base.txt
+
+pytest

@@ -1,0 +1,176 @@
+{
+  "stage": "immediate_assignment_3_worked_bounds",
+  "reference_bank": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      2.0,
+      0.0
+    ],
+    [
+      0.0,
+      2.0
+    ],
+    [
+      10.0,
+      0.0
+    ],
+    [
+      12.0,
+      0.0
+    ],
+    [
+      10.0,
+      2.0
+    ]
+  ],
+  "centers": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      10.0,
+      0.0
+    ]
+  ],
+  "radii_exact": [
+    2.0,
+    2.0
+  ],
+  "radii_stored_after_guard": [
+    2.000001907348633,
+    2.000001907348633
+  ],
+  "cell_sizes": [
+    3,
+    3
+  ],
+  "threshold": 3.0,
+  "version_id": "125baa2b7fa25c71",
+  "guard": {
+    "rel": 9.5367431640625e-07,
+    "abs": 1e-30,
+    "rel_ulps_f32": 8.0
+  },
+  "rows": [
+    {
+      "query": [
+        1.0,
+        1.0
+      ],
+      "note": "inside the first cell; interval far below t",
+      "upper_U": 1.414214849472046,
+      "lower_L": 0.0,
+      "exact_S": 1.4142135381698608,
+      "interval_contains_exact": true,
+      "reference_decision": "normal",
+      "screened_decision": "normal",
+      "outcome": "certified_local",
+      "escalated": false,
+      "agrees_with_reference": true
+    },
+    {
+      "query": [
+        11.0,
+        0.0
+      ],
+      "note": "inside the second cell; sits between m4 and m5",
+      "upper_U": 1.0000009536743164,
+      "lower_L": 0.0,
+      "exact_S": 1.0,
+      "interval_contains_exact": true,
+      "reference_decision": "normal",
+      "screened_decision": "normal",
+      "outcome": "certified_local",
+      "escalated": false,
+      "agrees_with_reference": true
+    },
+    {
+      "query": [
+        30.0,
+        0.0
+      ],
+      "note": "far outside every ball; interval entirely above t",
+      "upper_U": 20.000019073486328,
+      "lower_L": 17.999980926513672,
+      "exact_S": 18.0,
+      "interval_contains_exact": true,
+      "reference_decision": "alarm",
+      "screened_decision": "alarm",
+      "outcome": "certified_local",
+      "escalated": false,
+      "agrees_with_reference": true
+    },
+    {
+      "query": [
+        5.0,
+        0.0
+      ],
+      "note": "cell boundary; L(q) == t exactly -> tie",
+      "upper_U": 5.000004768371582,
+      "lower_L": 2.999995231628418,
+      "exact_S": 3.0,
+      "interval_contains_exact": true,
+      "reference_decision": "normal",
+      "screened_decision": "normal",
+      "outcome": "escalated_resolved",
+      "escalated": true,
+      "agrees_with_reference": true
+    },
+    {
+      "query": [
+        6.5,
+        0.0
+      ],
+      "note": "straddles t -> must escalate; reference says ALARM",
+      "upper_U": 3.5000033378601074,
+      "lower_L": 1.4999966621398926,
+      "exact_S": 3.5,
+      "interval_contains_exact": true,
+      "reference_decision": "alarm",
+      "screened_decision": "alarm",
+      "outcome": "escalated_resolved",
+      "escalated": true,
+      "agrees_with_reference": true
+    }
+  ],
+  "tie_case": {
+    "query": [
+      5.0,
+      0.0
+    ],
+    "L": 2.999995231628418,
+    "U": 5.000004768371582,
+    "S": 3.0,
+    "strict_rule_required": true
+  },
+  "unresolved_cases": {
+    "no_resolver": {
+      "decision": "unresolved",
+      "outcome": "unresolved_no_resolver",
+      "lower": 1.4999966621398926,
+      "upper": 3.5000033378601074,
+      "threshold": 3.0,
+      "exact_score": null,
+      "note": "ambiguous and no resolver available"
+    },
+    "version_mismatch": {
+      "decision": "unresolved",
+      "outcome": "unresolved_version_mismatch",
+      "lower": 1.4999966621398926,
+      "upper": 3.5000033378601074,
+      "threshold": 3.0,
+      "exact_score": null,
+      "note": "version mismatch in ['threshold', 'threshold_policy']"
+    },
+    "mismatch_fields": [
+      "threshold",
+      "threshold_policy"
+    ]
+  },
+  "all_intervals_contain_exact": true,
+  "all_decisions_agree_with_reference": true
+}

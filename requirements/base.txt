@@ -1,0 +1,34 @@
+# Base runtime requirements for the master-research project.
+#
+# Deliberately unpinned *here*; the exact resolved versions actually installed
+# on the recording machine are frozen in env/environment_lock.md (pip freeze).
+# Nothing in this file counts as a reproduction record on its own.
+#
+# Target machine: macOS 26.6.2 / Apple M4 (arm64) / 16 GB unified memory / no CUDA.
+# Compute backend: PyTorch MPS. See env/hardware_inventory.md for the inventory
+# and the explicit list of things that are UNKNOWN rather than assumed.
+
+# --- core numerical stack ---
+numpy
+scipy
+scikit-learn
+pandas
+matplotlib
+
+# --- images ---
+Pillow
+
+# --- deep learning (MPS build on Apple Silicon) ---
+torch
+torchvision
+
+# --- exact / approximate nearest neighbour ---
+# faiss-cpu is required by the official PatchCore repo. It is intentionally NOT
+# installed in the Week-1 lock: Week 1 uses exact chunked PyTorch/NumPy distances
+# only, and faiss-cpu wheel availability for macOS arm64 must be verified before
+# we depend on it. See docs/notes/open_questions.md (Q4).
+# faiss-cpu
+
+# --- reporting ---
+tqdm
+pyyaml

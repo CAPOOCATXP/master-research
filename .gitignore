@@ -1,0 +1,54 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.ipynb_checkpoints/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/*/bin/
+
+# ---- Pinned third-party checkouts (recreated by env/setup_macos_arm64.sh) ----
+# The *commit* is the record; see env/repos.lock.yaml
+third_party/
+
+# ---- Data (licence-restricted, never commit) ----
+# MVTec AD / MVTec AD 2 are noncommercial and must not be redistributed.
+data/raw/
+data/cache/
+data/downloads/
+*.tar.xz
+*.tar.gz
+*.zip
+
+# ---- Large result artifacts ----
+# Small JSON logs ARE committed on purpose: they are the raw evidence behind the
+# weekly report. Large figures/tables are not, except the Phase-0 deliverable
+# that the report embeds.
+results/figures/*.png
+results/figures/*.pdf
+!results/figures/phase0_patch_score_map.png
+results/logs/*.log
+results/logs/**/*.log
+results/tables/*.csv
+artifacts/*.npz
+artifacts/*.pt
+artifacts/*.pth
+artifacts/*.faiss
+
+# ---- Model weights ----
+weights/
+*.pth
+*.pt
+*.safetensors
+*.onnx
+
+# ---- macOS / editors ----
+.DS_Store
+.vscode/
+.idea/
+*.swp

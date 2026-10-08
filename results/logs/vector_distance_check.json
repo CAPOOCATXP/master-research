@@ -1,0 +1,223 @@
+{
+  "stage": "immediate_assignment_2_vector_distance_check",
+  "reason": "MVTec AD not downloaded; professor's documented fallback used",
+  "n_references": 10,
+  "n_queries": 10,
+  "references": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      3.0,
+      4.0
+    ],
+    [
+      3.0,
+      4.0
+    ],
+    [
+      6.0,
+      8.0
+    ],
+    [
+      -3.0,
+      -4.0
+    ],
+    [
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      10.0,
+      0.0
+    ],
+    [
+      10.0,
+      1.0
+    ],
+    [
+      0.5,
+      0.5
+    ]
+  ],
+  "queries": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      3.0,
+      4.0
+    ],
+    [
+      0.0,
+      5.0
+    ],
+    [
+      0.5,
+      0.5
+    ],
+    [
+      -0.5,
+      -0.5
+    ],
+    [
+      10.0,
+      0.5
+    ],
+    [
+      100.0,
+      100.0
+    ],
+    [
+      1.0,
+      1.0
+    ],
+    [
+      2.0,
+      0.0
+    ],
+    [
+      5.0,
+      5.0
+    ]
+  ],
+  "rows": [
+    {
+      "query_index": 0,
+      "query": [
+        0.0,
+        0.0
+      ],
+      "brute_force_float64": 0.0,
+      "library_float32": 0.0,
+      "abs_diff": 0.0,
+      "library_float32_unrefined": 0.0,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 1,
+      "query": [
+        3.0,
+        4.0
+      ],
+      "brute_force_float64": 0.0,
+      "library_float32": 0.0,
+      "abs_diff": 0.0,
+      "library_float32_unrefined": 0.0,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 2,
+      "query": [
+        0.0,
+        5.0
+      ],
+      "brute_force_float64": 3.1622776601683795,
+      "library_float32": 3.1622776985168457,
+      "abs_diff": 3.834846618033794e-08,
+      "library_float32_unrefined": 3.1622776985168457,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 3,
+      "query": [
+        0.5,
+        0.5
+      ],
+      "brute_force_float64": 0.0,
+      "library_float32": 0.0,
+      "abs_diff": 0.0,
+      "library_float32_unrefined": 0.0,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 4,
+      "query": [
+        -0.5,
+        -0.5
+      ],
+      "brute_force_float64": 0.7071067811865476,
+      "library_float32": 0.7071067690849304,
+      "abs_diff": 1.2101617152815436e-08,
+      "library_float32_unrefined": 0.7071067690849304,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 5,
+      "query": [
+        10.0,
+        0.5
+      ],
+      "brute_force_float64": 0.5,
+      "library_float32": 0.5,
+      "abs_diff": 0.0,
+      "library_float32_unrefined": 0.5,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 6,
+      "query": [
+        100.0,
+        100.0
+      ],
+      "brute_force_float64": 131.52946437965906,
+      "library_float32": 131.5294647216797,
+      "abs_diff": 3.4202062693111657e-07,
+      "library_float32_unrefined": 131.5294647216797,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 7,
+      "query": [
+        1.0,
+        1.0
+      ],
+      "brute_force_float64": 0.7071067811865476,
+      "library_float32": 0.7071067690849304,
+      "abs_diff": 1.2101617152815436e-08,
+      "library_float32_unrefined": 0.7071067690849304,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 8,
+      "query": [
+        2.0,
+        0.0
+      ],
+      "brute_force_float64": 1.0,
+      "library_float32": 1.0,
+      "abs_diff": 0.0,
+      "library_float32_unrefined": 1.0,
+      "within_tolerance": true
+    },
+    {
+      "query_index": 9,
+      "query": [
+        5.0,
+        5.0
+      ],
+      "brute_force_float64": 2.23606797749979,
+      "library_float32": 2.2360680103302,
+      "abs_diff": 3.283041039026102e-08,
+      "library_float32_unrefined": 2.2360680103302,
+      "within_tolerance": true
+    }
+  ],
+  "checks": {
+    "max_abs_diff_vs_float64_bruteforce": 3.4202062693111657e-07,
+    "max_rel_diff_vs_float64_bruteforce": 1.7114271104158468e-08,
+    "tiny_chunk_size_equals_default_chunk_size": true,
+    "repeat_run_bitwise_identical": true,
+    "distance_matrix_rowmin_equals_min_distances": true,
+    "refinement_changed_any_value": false,
+    "duplicate_references_handled": true,
+    "query_on_reference_gives_zero": true,
+    "all_finite": true
+  }
+}

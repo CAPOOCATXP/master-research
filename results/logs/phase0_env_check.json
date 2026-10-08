@@ -1,0 +1,89 @@
+{
+  "stage": "phase0_env_check",
+  "repo": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research",
+  "environment": {
+    "python": "3.12.14",
+    "python_executable": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/.venv/bin/python",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "machine": "arm64",
+    "processor": "arm",
+    "torch": "2.14.1",
+    "torchvision": "0.29.1",
+    "numpy": "2.5.3",
+    "device_requested": "auto",
+    "device_resolved": "mps",
+    "device_notes": [
+      "MPS reported available"
+    ],
+    "mps_built": true,
+    "mps_available": true,
+    "cuda_available": false,
+    "disk_free_gb": 145.2
+  },
+  "backbone": {
+    "name": "wide_resnet50_2",
+    "weights_enum": "Wide_ResNet50_2_Weights.IMAGENET1K_V1",
+    "layers": [
+      "layer2",
+      "layer3"
+    ],
+    "encoder_id": "wide_resnet50_2:IMAGENET1K_V1:layer2+layer3",
+    "preprocessing_id": "resize256-center224-ps3-st1-norm0.485-0.456-0.406_0.229-0.224-0.225",
+    "checkpoint_path": "/Users/zhangege/.cache/torch/hub/checkpoints/wide_resnet50_2-95faca4d.pth",
+    "checkpoint_bytes": 138223492,
+    "checkpoint_sha256": "95faca4d11227dddf8633dbb5ff6c8a9003c1aa5b8945c73834b8007b10950b8",
+    "checkpoint_hash_seconds": 0.05
+  },
+  "features": {
+    "image_source": "synthetic",
+    "patches": 676,
+    "dim": 1536,
+    "patch_grid": [
+      26,
+      26
+    ],
+    "grid_matches_patches": true,
+    "all_finite": true,
+    "min": 0.0,
+    "max": 1.5526052713394165,
+    "mean": 0.05656978487968445,
+    "std": 0.09120535105466843,
+    "encode_seconds": 0.0341,
+    "extract_calls_are_deterministic": true
+  },
+  "distance_check": {
+    "n_queries": 8,
+    "n_references": 676,
+    "dim": 1536,
+    "max_abs_diff_refined_vs_float64_bruteforce": 0.0,
+    "max_rel_diff_refined_vs_float64_bruteforce": 0.0,
+    "max_abs_diff_unrefined_vs_refined": 0.006176323629915714,
+    "refinement_changed_any_value": true,
+    "chunked_equals_unchunked": true
+  },
+  "timing_pilot": {
+    "warning": "timing vehicle only; the bank is one image, not a trained reference set",
+    "n_patches": 676,
+    "dim": 1536,
+    "full_bank_n": 676,
+    "n_centers": 68,
+    "ratio": 0.1,
+    "coreset_seconds": 0.0407,
+    "coverage_index_build_seconds": 0.0246,
+    "screen_scan_seconds": 0.018814,
+    "full_bank_scan_seconds": 0.008503,
+    "screen_scan_speedup_vs_full_bank": 0.45,
+    "encoder_seconds": 0.0341,
+    "bank_bytes": 4153344,
+    "edge_state_bytes": 418608,
+    "edge_state_bytes_fraction_of_bank": 0.10078818417159763
+  },
+  "interval_sanity": {
+    "violations_L_gt_S": 0,
+    "violations_S_gt_U": 0,
+    "mean_interval_width": 0.8619034290313721,
+    "max_interval_width": 1.3903967142105103,
+    "touching_zero_lower_count": 676
+  },
+  "figure": "/Users/zhangege/Documents/deepseek-harness/default-workspace/master-research/results/figures/phase0_patch_score_map.png"
+}

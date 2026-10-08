@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "master-research"
+version = "0.1.0"
+description = "Decision-preserving edge screening over a compressed normal-patch memory bank"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary / academic use" }
+authors = [{ name = "Yuantai Wu (CAPOOCATXP)" }]
+dependencies = [
+    "numpy",
+    "scipy",
+    "scikit-learn",
+    "pandas",
+    "matplotlib",
+    "Pillow",
+    "tqdm",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+torch = ["torch", "torchvision"]
+dev = ["pytest"]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
