@@ -1,8 +1,10 @@
 # Research Proposal
 
-**Title: When Does Memory Compression Change Industrial Alarms? Decision-Preserving Screening for Edge Anomaly Detection**
+**When Does Memory Compression Change Industrial Alarms?**
 
-**Applicant:** Wu Yuantai　**Date:** November 2026　**Duration:** 10 weeks
+**Decision-Preserving Screening for Edge Anomaly Detection**
+
+Wu Yuantai　·　November 2026　·　10 weeks
 
 ---
 

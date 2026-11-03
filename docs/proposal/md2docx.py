@@ -39,6 +39,13 @@ MONO = "Consolas"
 BODY_PT = 12
 LINE_SPACING = 1.5
 
+# Chinese convention indents two characters (about 0.74 cm at 12 pt) and keeps a
+# small space between paragraphs. English convention indents half an inch and
+# does NOT add paragraph spacing on top, because the indent alone marks the break.
+INDENT_ZH = 0.74
+INDENT_EN = 1.27
+REF_HANG = 0.75
+
 
 # --------------------------------------------------------------------------
 # low-level helpers
@@ -293,7 +300,7 @@ def add_table(doc: Document, rows: list) -> None:
     return table
 
 
-def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str) -> dict:
+def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str, lang: str = "zh") -> dict:
     lines = md_path.read_text(encoding="utf-8").splitlines()
 
     doc = Document()
@@ -305,6 +312,15 @@ def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str)
     i = 0
     n = len(lines)
     first_h1 = True
+    front_matter = True     # paragraphs before the first real heading
+    indent = INDENT_EN if lang == "en" else INDENT_ZH
+    body_gap = 0 if lang == "en" else 6
+    # English gets left alignment, Chinese gets justification. Justified English
+    # without hyphenation stretches inter-word spaces badly on short lines; the
+    # reference list was showing gaps several characters wide ("Transactions on
+    # Image      Processing"). Chinese has no word spacing to stretch, so
+    # justification is the correct choice there.
+    body_align = WD_ALIGN_PARAGRAPH.LEFT if lang == "en" else WD_ALIGN_PARAGRAPH.JUSTIFY
     while i < n:
         line = lines[i]
 
@@ -367,6 +383,7 @@ def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str)
                 for run in p.runs:
                     run.bold = True
                     run.font.color.rgb = RGBColor(0, 0, 0)
+                front_matter = False
             stats["headings"] += 1
             i += 1
             continue
@@ -438,8 +455,25 @@ def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str)
             buf.append(nxt)
             i += 1
         p = doc.add_paragraph()
-        p.paragraph_format.first_line_indent = Cm(0.74)
-        add_rich_text(p, " ".join(buf), latin=LATIN_BODY, cjk=CJK_BODY)
+        text = " ".join(buf)
+        pf = p.paragraph_format
+        if front_matter:
+            # Title page block: centred, no indent, on either language.
+            pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            pf.first_line_indent = Cm(0)
+            pf.space_after = Pt(6)
+        elif re.match(r"^\[\d+\]", text):
+            # Reference entry: hanging indent so the number sits in the margin and
+            # continuation lines line up under the text, not under the number.
+            pf.alignment = body_align
+            pf.left_indent = Cm(REF_HANG)
+            pf.first_line_indent = Cm(-REF_HANG)
+            pf.space_after = Pt(body_gap)
+        else:
+            pf.alignment = body_align
+            pf.first_line_indent = Cm(indent)
+            pf.space_after = Pt(body_gap)
+        add_rich_text(p, text, latin=LATIN_BODY, cjk=CJK_BODY)
         stats["paragraphs"] += 1
 
     doc.core_properties.title = title_for_meta
@@ -452,12 +486,12 @@ def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str)
 def main() -> int:
     jobs = [
         ("proposal_zh.md", "研究计划书_记忆库压缩与工业报警_吴源泰.docx",
-         "记忆库压缩何时改变工业报警——面向边缘部署的决策保持筛选方法", "吴源泰"),
+         "记忆库压缩何时改变工业报警——面向边缘部署的决策保持筛选方法", "吴源泰", "zh"),
         ("proposal_en.md", "Research_Proposal_Memory_Compression_and_Industrial_Alarms.docx",
-         "When Does Memory Compression Change Industrial Alarms?", "Wu Yuantai"),
+         "When Does Memory Compression Change Industrial Alarms?", "Wu Yuantai", "en"),
     ]
-    for src, dst, title, author in jobs:
-        stats = convert(HERE / src, HERE / dst, title_for_meta=title, author=author)
+    for src, dst, title, author, lang in jobs:
+        stats = convert(HERE / src, HERE / dst, title_for_meta=title, author=author, lang=lang)
         print(f"{dst}")
         for k, v in stats.items():
             print(f"    {k}: {v}")
