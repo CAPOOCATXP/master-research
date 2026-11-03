@@ -8,13 +8,13 @@
 
 ## Abstract
 
-Industrial visual anomaly detection often relies on a normal-patch memory bank with nearest-neighbour retrieval. The system stores every normal patch seen during training as a feature vector. For a new image, each patch is matched against the bank, and the distance to its nearest neighbour becomes an anomaly score. This design is accurate. However, the bank is large. Edge devices cannot hold it comfortably and cannot search it quickly. Therefore, compression is usually applied.
+Industrial visual anomaly detection often relies on a normal-patch memory bank with nearest-neighbour retrieval. The system stores every normal patch seen during training as a feature vector. For a new image, each patch is matched against the bank, and the distance to its nearest neighbour becomes an anomaly score. This design is accurate. However, the bank is large, and edge devices can neither hold it comfortably nor search it quickly. Therefore, compression is usually applied.
 
-The difficulty is that compression may quietly change the binary alarm decision at a fixed threshold. Ranking metrics such as AUROC cannot reveal this change, because AUROC is insensitive to monotone rescaling. What matters on a production line is not the ranking. It is the single threshold that separates pass from fail.
+The difficulty is that compression may quietly change the binary alarm decision at a fixed threshold. Ranking metrics such as AUROC cannot reveal this change, because AUROC is insensitive to monotone rescaling. What matters on a production line is not the ranking; it is the single threshold that separates pass from fail.
 
 This project asks one concrete question. Given a frozen encoder, a frozen preprocessing pipeline, a frozen bank version and a frozen threshold, does compression change the alarm decision? If it does, can a conservative interval separate "certain normal", "certain alarm" and "must query the full bank", without ever turning "unknown" into "normal"?
 
-The method claims no new mathematics. It reuses the triangle inequality. The edge stores only a small number of observed centres together with conservative coverage radii, and it derives an interval [L, U] around the true score. If the whole interval lies on one side of the threshold, the decision is made locally. If the interval straddles the threshold, the query is escalated to the full bank. If the bank is unavailable or the version does not match, the system returns "unresolved". The contract is decision preservation, not higher accuracy. A false alarm that is faithfully preserved remains a false alarm, and this limitation is stated throughout.
+The method claims no new mathematics and reuses the triangle inequality. The edge stores only a small number of observed centres together with conservative coverage radii, and it derives an interval `[L, U]` around the true score. If the whole interval lies on one side of the threshold, the decision is made locally. If the interval straddles the threshold, the query is escalated to the full bank. If the bank is unavailable or the version does not match, the system returns "unresolved". The contract is decision preservation, not higher accuracy. A false alarm that is faithfully preserved remains a false alarm, and this limitation is stated throughout.
 
 Evaluation uses public industrial datasets. The study measures decision disagreement, real defect recall, normal false-alarm rate, interval width, serialised bytes and end-to-end latency, with paired confidence intervals over five seeds. The expected outcome is not a better detector. It is a reproducible boundary that states how far the bank can be compressed before alarms stop matching, and where that boundary fails.
 
@@ -32,35 +32,21 @@ Yet there is a hard engineering constraint. The bank grows linearly with the tra
 
 ### 1.2 Problem Statement
 
-Compression has a consequence that is easy to miss.
-
-When the bank shrinks, the nearest-neighbour distance of each test patch usually grows, because fewer candidates remain. This change looks monotone and therefore harmless. However, the image score takes a maximum over patches, which is a nonlinear aggregation. Moreover, different images have different score distributions. As a result, compression does not simply shift all scores by a constant. It moves some images more than others.
-
-Consequently, the practical consequence is direct. An image that sat just below the threshold before compression may cross above it and become a new false alarm. The opposite case may arise as well, in which a true defect is silently missed.
+When the bank shrinks, the nearest-neighbour distance of each test patch usually grows, because fewer candidates remain. This change looks monotone and therefore harmless, yet it is not the whole story. The image score takes a maximum over patches, which is a nonlinear aggregation. Moreover, different images have different score distributions. As a result, compression does not simply shift all scores by a constant; it moves some images more than others. An image that sat just below the threshold before compression may cross above it and become a new false alarm, and the opposite case may arise as well, in which a true defect is silently missed.
 
 Nevertheless, AUROC cannot see any of this. The reason is straightforward. AUROC integrates performance over all thresholds, whereas a production line uses exactly one. Two models with identical AUROC can behave very differently at a one percent false-alarm rate. Industrial datasets such as MSC-AD [7] make the same point, since industrial practice cares about performance at low false-alarm rates.
 
-Therefore the project narrows the question to a single sentence:
-
-> Given a frozen detector, does memory-bank compression change the binary alarm decision at a fixed threshold? If it does, can an auditable interval keep that change under control?
+Therefore the project narrows the question to a single sentence. Given a frozen detector, does memory-bank compression change the binary alarm decision at a fixed threshold? If it does, can an auditable interval keep that change under control?
 
 ### 1.3 Hypotheses
 
-Two hypotheses are proposed, and both can be falsified.
-
-- **H1 (gap):** At a useful storage reduction, for example ten percent, compression produces non-negligible alarm disagreement, reaching at least two percentage points on at least two categories.
-- **H2 (mechanism):** Conservative intervals built from observed centres and coverage radii can decide a substantial share of images locally, at least twenty percent, without changing any decision.
+Two hypotheses are proposed, and both can be falsified. The gap hypothesis (H1) states that at a useful storage reduction, for example ten percent, compression produces non-negligible alarm disagreement, reaching at least two percentage points on at least two categories. The mechanism hypothesis (H2) states that conservative intervals built from observed centres and coverage radii can decide a substantial share of images locally, at least twenty percent, without changing any decision.
 
 Both hypotheses may fail. If ordinary compression followed by recalibration already matches the useful trade-off, the gap does not exist and the work should become a careful empirical evaluation instead. If the intervals are so wide that nearly every image must escalate, the mechanism adds no value. Either negative outcome is a valid result, and both will be reported as they are.
 
 ### 1.4 Scope
 
-In addition, the boundaries are stated in advance to prevent overclaiming.
-
-- The project targets **decision preservation, not detection accuracy**. Errors made by the reference detector are preserved faithfully; compression does not repair them.
-- The project claims **no new mathematical theorem**. The triangle inequality and metric balls are established tools.
-- The project **never uses test-set defect labels** to set the threshold or select parameters. Any such use invalidates the experiment.
-- No physical edge device is currently available. Latency results therefore come from workstation measurement only and are not extrapolated to a deployed line.
+The project targets decision preservation, not detection accuracy. Errors made by the reference detector are preserved faithfully, and compression does not repair them. Nor does it claim any new mathematical theorem, since the triangle inequality and metric balls are established tools. Test-set defect labels are never used to set the threshold or select parameters, because any such use invalidates the experiment. In addition, no physical edge device is currently available, so latency results come from workstation measurement only and are not extrapolated to a deployed line.
 
 ---
 
@@ -68,37 +54,29 @@ In addition, the boundaries are stated in advance to prevent overclaiming.
 
 ### 2.1 Memory-Bank Industrial Anomaly Detection
 
-PatchCore [1] established the paradigm. It extracts mid-level features from an ImageNet-pretrained WideResNet-50, aggregates local neighbourhoods into patch features, unions all patches from the training set into a memory bank, scores tests by nearest-neighbour distance, and subsamples the bank with a greedy coreset. One of its key observations is that coreset subsampling to one percent raises the share of bank samples actually used at test time from below thirty percent to nearly ninety-five percent. The uncompressed bank is therefore highly redundant.
+PatchCore [1] established the paradigm. It extracts mid-level features from an ImageNet-pretrained WideResNet-50, aggregates local neighbourhoods into patch features, unions all patches from the training set into a memory bank, scores tests by nearest-neighbour distance, and subsamples the bank with a greedy coreset. One of its key observations is that coreset subsampling to one percent raises the share of bank samples actually used at test time from below thirty percent to nearly ninety-five percent, which shows that the uncompressed bank is highly redundant.
 
 AnomalyDINO [2] moves to the opposite extreme. It trains nothing, freezes DINOv2, builds the bank from one, four or sixteen reference images, and scores an image by the mean of its top one percent of patch distances. It shows that frozen features with a small bank are already strong in the few-shot regime.
 
 On the industrial side, the memory-bank idea has been adapted repeatedly. Wang et al. [5] combine it with contrastive learning for few-shot catheter defect detection, and Jia and Chen [6] use memory-aided denoising reconstruction for wind turbine blade damage. Among Chinese-language work, Zhang and Liu [9] apply coupled hyperspheres with deviation reduction to industrial image anomaly detection, while Zhao and Zhang [10] focus on fusing semantic and detail cues.
 
-**Summary.** The memory-bank approach is mature, and compression is standard practice. Nevertheless, the works above report ranking metrics such as AUROC and AP. None of them reports whether the binary decision at a fixed threshold survives compression.
+Overall, the memory-bank approach is mature, and compression is standard practice. However, the works above report ranking metrics such as AUROC and AP, and none of them reports whether the binary decision at a fixed threshold survives compression, which is the only thing a production line actually cares about.
 
 ### 2.2 Retrieval Acceleration
 
-Since retrieval is the bottleneck, cost reduction takes two forms: a smaller bank or a faster search.
+Since retrieval is the bottleneck, cost reduction takes two forms: a smaller bank or a faster search. Li et al. [4] take the second route. Their cascade patch retrieval narrows candidates from coarse to fine and brings detection and localisation below one millisecond while keeping accuracy, which shows that staged screening is practical in engineering terms.
 
-Li et al. [4] provide a good example of the second form. Their cascade patch retrieval narrows candidates from coarse to fine and brings detection and localisation below one millisecond while keeping accuracy. Such work shows that staged screening is practical in engineering terms.
-
-A distinction matters here. Most acceleration work optimises for **unchanged accuracy**, whereas this project optimises for **unchanged decisions**. The first is a ranking property and the second is a decision property. The two look identical under AUROC and behave completely differently on a production line.
+A distinction matters here. Most acceleration work optimises for unchanged accuracy, whereas this project optimises for unchanged decisions. The first is a ranking property and the second is a decision property. The two look identical under AUROC and behave completely differently on a production line.
 
 ### 2.3 Edge Deployment
 
-Shallari et al. [8] discuss deploying vision anomaly detection from edge to fog nodes and identify latency and bandwidth as the main constraints. EfficientAD [3] answers the same question from the model side. It replaces bank retrieval with a small student-teacher network and reaches good accuracy at millisecond latency.
+Shallari et al. [8] discuss deploying vision anomaly detection from edge to fog nodes and identify latency and bandwidth as the main constraints. EfficientAD [3] answers the same question from the model side, replacing bank retrieval with a small student-teacher network that reaches good accuracy at millisecond latency.
 
-One point deserves separate mention because it is easy to confuse. A **small learned model** and a **small retrieval bank** are different things. In the first, reference knowledge is compressed into network weights; consequently, test-time memory is constant. In the second, memory grows with the training set. This project studies the second, because its failure mode is easier to observe (change the bank and the scores change) and because it admits an auditable guarantee.
+A small learned model and a small retrieval bank are nevertheless different things. In the first, reference knowledge is compressed into network weights, so test-time memory is constant. In the second, memory grows with the training set. This project studies the second, because its failure mode is easier to observe, in that changing the bank changes the scores, and because it admits an auditable guarantee.
 
 ### 2.4 Research Gap
 
-Putting the strands together, the gap becomes visible.
-
-1. Existing work reports ranking metrics and **does not report decision agreement at a fixed threshold**.
-2. Existing compression work reports accuracy loss and **does not report whether the threshold still means the same thing**.
-3. Existing acceleration work reports latency and **does not treat decision preservation as an auditable contract**.
-
-To put it plainly, most of the field compares scores. Very few ask whether the score is still trustworthy near the threshold. That is the position this project fills.
+Putting the strands together, the gap becomes visible. Existing work reports ranking metrics, yet rarely reports decision agreement at a fixed threshold. Compression work reports accuracy loss, yet rarely reports whether the threshold still means the same thing. Acceleration work reports latency, yet rarely treats decision preservation as an auditable contract. To put it plainly, most of the field compares scores, and very few ask whether the score is still trustworthy near the threshold. That is the position this project fills.
 
 ---
 
@@ -113,56 +91,39 @@ s_M(q) = min_{m ∈ M} d(q, m)          patch score
 S_M(x) = max_{q ∈ x} s_M(q)           image score, maximum over patches
 ```
 
-The decision rule is uniform: **alarm if and only if `S_M(x) > t`**, with equality treated as normal. The threshold `t` is fixed on separate calibration normal images at a nominal five percent image false-alarm rate.
+The decision rule is uniform: alarm if and only if `S_M(x) > t`, with equality treated as normal. The threshold `t` is fixed on separate calibration normal images at a nominal five percent image false-alarm rate.
 
 ### 3.2 Compression and Coverage Radii
 
-A greedy coreset selects `K` **observed centres** `c_j` from `M`. Every centre must be an actual bank vector, not a computed mean. All bank vectors are assigned to their nearest centre, forming `K` cells, and each cell receives a **coverage radius**
+A greedy coreset selects `K` observed centres `c_j` from `M`. One point invites a shortcut and must be resisted: every centre has to be an actual bank vector, not a computed mean, otherwise the upper bound below does not hold. All bank vectors are assigned to their nearest centre, forming `K` cells, and each cell receives a coverage radius
 
 ```
 r_j = max_{m ∈ C_j} d(m, c_j)
 ```
 
-Hence the edge stores only `K` centres together with `K` radii.
+which is simply the distance from the centre to the farthest point in its cell. Hence the edge stores only `K` centres together with `K` radii.
 
 ### 3.3 The Interval
 
-This is the only piece of mathematics in the proposal, and it is not difficult. Three quantities are defined.
+The interval needs no new mathematics and relies only on the triangle inequality. The upper bound is `U(q) = min_j d(q, c_j)`, the distance from the query to its nearest centre. The lower bound is `L(q) = min_j max(0, d(q, c_j) − r_j)`.
 
-```
-U(q) = min_j d(q, c_j)                        upper bound
-L(q) = min_j max(0, d(q, c_j) − r_j)          lower bound
-```
-
-The argument takes two sentences.
-
-- **Upper bound:** every centre is itself a bank vector. Minimising over the subset of centres can only give a larger value than minimising over the whole bank. Hence `s_M ≤ U`.
-- **Lower bound:** this follows from the triangle inequality. In plain terms, a detour is never shorter. The centre `c` lies at distance `d` from `q`, and every point in the cell lies within `r` of `c`. Therefore every point in the cell lies at least `d − r` away from `q`. Hence `s_M ≥ d − r`, and taking the minimum over cells gives `L`.
+The upper bound holds because every centre is itself a bank vector, and minimising over the subset of centres can only give a larger value than minimising over the whole bank. The lower bound follows from the same inequality. In plain terms, a detour is never shorter. The centre `c` lies at distance `d` from `q`, and every point in the cell lies within `r` of `c`. Therefore every point in the cell lies at least `d − r` away from `q`, and taking the minimum over cells gives `L`.
 
 Consequently `L(q) ≤ s_M(q) ≤ U(q)`. Because the maximum aggregation is monotone, the interval transfers to the image level directly.
 
 ### 3.4 Four-Branch Decision
 
-```
-① U_x ≤ t        → normal, local, no bank query
-② L_x > t         → alarm, local, no bank query    (strict inequality required)
-③ otherwise       → escalate to the full bank
-④ unavailable     → return "unresolved", never "normal"
-```
+The decision has four cases. If the upper bound `U_x` does not exceed the threshold `t`, the true score cannot exceed it either, so the image is declared normal locally without querying the bank. If the lower bound `L_x` is strictly greater than `t`, the true score certainly exceeds it, so the image is declared an alarm locally.
 
-Branch ② must use a strict inequality. The reference rule alarms only when the score is strictly greater than the threshold. Therefore, when `L_x` equals `t` exactly, the reference answer may well be "normal". Writing `>=` would manufacture a disagreement out of nothing, and no error message would ever appear.
+The strict inequality matters. The reference rule alarms only when the score is strictly greater than the threshold, so when `L_x` equals `t` exactly the reference answer may well be normal. Writing `>=` would manufacture a disagreement out of nothing, and no error message would ever appear.
 
-Branch ④ carries the most engineering weight. Treating "unknown" as "normal" means a missed defect, which is the worst failure mode on a production line.
+When neither condition holds, the interval straddles the threshold, and the query must be escalated to the full bank, whose answer is adopted. A fourth case remains, and it deserves separate attention. If the full bank is unavailable, if the version does not match, or if the query times out, the rule requires the system to return "unresolved" and never to return "normal". Treating unknown as normal means a missed defect, which is the worst failure mode on a production line.
 
 ### 3.5 Numerical Reliability
 
-Two issues must be handled.
+Floating-point error can break the interval, so distances are computed by direct subtraction rather than the expansion `|a|² + |b|² − 2ab`, because the expansion loses most of its significant digits in high dimensions. In one measurement, the expansion made thirty-one of 676 patches report `L > s`, meaning the lower bound exceeded the true value, which would fabricate a verified alarm that was never verified at all. Radii are rounded upwards and lower bounds downwards, so that the interval stays conservative.
 
-First, floating-point error can break the interval. Distances are computed by direct subtraction rather than the expansion `|a|² + |b|² − 2ab`, because the expansion loses most of its significant digits in high dimensions. In one measurement, the expansion made thirty-one of 676 patches report `L > s`, meaning the lower bound exceeded the true value. That would fabricate a "verified alarm".
-
-Second, radii are rounded upwards and lower bounds downwards, so that the interval stays conservative.
-
-Nevertheless, an important limitation must be stated. With this guard in place, the result is only **empirically decision-preserving**. It is not a formal numerical certificate, and the report will use exactly this wording.
+Nevertheless, an important limitation must be stated. With this guard in place, the result is only empirically decision-preserving. It is not a formal numerical certificate, and the report will use exactly this wording.
 
 ### 3.6 Version Control
 
@@ -176,7 +137,7 @@ A claim of decision preservation is meaningless without a version. Each artefact
 
 The main experiments use MSC-AD [7] for casting surface defects and three categories from MVTec AD (bottle, tile and screw), prepared according to the protocol of PatchCore [1]. The three categories cover objects, textures and small defects respectively.
 
-Normal images are split into three disjoint roles.
+Normal images are split into three disjoint roles. The reference-fit role is used only for bank construction and takes sixty percent, the development role is used only for development decisions and takes twenty percent, and the final-calibration role is used only to set the threshold and takes the remaining twenty percent.
 
 | Role | Use | Share |
 |---|---|---|
@@ -184,15 +145,11 @@ Normal images are split into three disjoint roles.
 | development | development decisions only | 20% |
 | final-calibration | threshold setting only | 20% |
 
-No image may appear in two roles. Few-shot variants with one, four or sixteen reference images draw **only** from reference-fit, and images in the other two roles are counted separately.
+No image may appear in two roles. Few-shot variants with one, four or sixteen reference images draw only from reference-fit, and images in the other two roles are counted separately.
 
 ### 4.2 Baselines and Ablations
 
-- **Full bank:** the reference detector, used as gold standard.
-- **Equal-byte random bank:** the simplest compression baseline.
-- **Equal-byte greedy bank:** PatchCore-style coreset [1].
-- **Compression with independent recalibration:** tests whether simple recalibration already solves the problem.
-- **Global radius versus per-cell radius:** the central ablation of the method.
+The full bank serves as the reference detector and the gold standard. An equal-byte random bank represents the simplest form of cost reduction, while an equal-byte greedy bank corresponds to coreset subsampling in the style of PatchCore [1]. Compression followed by an independent recalibration tests whether simple recalibration already solves the problem; if it does, the value of this project is reduced, and that possibility is accepted in advance. Finally, a comparison of a global radius against per-cell radii forms the central ablation of the method itself.
 
 ### 4.3 Metrics
 
@@ -206,7 +163,7 @@ No image may appear in two roles. Few-shot variants with one, four or sixteen re
 
 ### 4.4 Preliminary Result
 
-The complete pipeline already runs on a frozen WideResNet-50. One intermediate result is worth reporting because it cuts against the proposal.
+The complete pipeline already runs on a frozen WideResNet-50. The result does not fully support H2.
 
 | Quantity | Measured |
 |---|---|
@@ -216,7 +173,7 @@ The complete pipeline already runs on a frozen WideResNet-50. One intermediate r
 | Violations `L > s_M` | 0 |
 | Violations `s_M > U` | 0 |
 
-Two facts hold at the same time. The interval is correct, with zero violations, yet it is wider than the signal itself. This directly threatens H2 and must be re-examined at realistic bank sizes in the main experiments. The self-falsifying design is intentional.
+Two facts hold at the same time. The interval is correct, with zero violations, yet it is wider than the signal itself. A mean width of 1.12 already exceeds the entire range of true scores, which means that local decisions can cover only part of the input distribution. This must be re-examined at realistic bank sizes in the main experiments, and the self-falsifying design is intentional.
 
 One methodological error has already been corrected and is recorded here for transparency. An early version of the measurement used the bank's own patches as queries, which forced the true score to zero and made `L = 0` a tautology. The numbers above come from genuinely held-out queries.
 
@@ -239,12 +196,9 @@ One methodological error has already been corrected and is recorded here for tra
 
 ## 6. Expected Outcomes
 
-1. An **auditable evaluation protocol** that separates compression-induced decision disagreement from detection accuracy.
-2. A **working screening system** with explicit versioning and an unresolved state, released as code.
-3. An **empirical boundary** stating at which compression ratio, feature dimension and lighting condition alarms still match.
-4. An **honest negative result** with concrete evidence if the mechanism does not hold.
+The expected outcomes are an auditable evaluation protocol that separates compression-induced decision disagreement from detection accuracy, a working screening system with explicit versioning and an unresolved state released as code, an empirical boundary stating at which compression ratio, feature dimension and lighting condition alarms still match, and an honest negative result with concrete evidence if the mechanism does not hold.
 
-The project does **not** promise accuracy improvement, energy reduction, or production-line deployment performance.
+The project does not promise accuracy improvement, energy reduction, or production-line deployment performance.
 
 ---
 
@@ -286,10 +240,8 @@ The project does **not** promise accuracy improvement, energy reduction, or prod
 
 ---
 
-## Appendix: Three Items to Verify Before Submission
+## Appendix: Items to Verify Before Submission
 
-1. **Chinese author names for [10]:** Crossref returns only romanised forms (Zhao Mingming, Zhang Erhu). Please confirm the Chinese characters on CNKI.
-2. **Page format for [9]:** `1215006` is that journal's article number rather than a page range. Please confirm the required citation style on CNKI.
-3. **Conference details for [8]:** confirm the venue location and page range on the IEEE Xplore record.
+Three items need checking before submission. Crossref returns only romanised author names for [10] (Zhao Mingming, Zhang Erhu), so the Chinese characters should be confirmed on CNKI. The value `1215006` for [9] is that journal's article number rather than a page range, so the required citation style should be confirmed on CNKI. The venue location and page range for [8] should be taken from the IEEE Xplore record.
 
 The remaining eight entries were checked item by item against Crossref, including authors, venue, volume, issue, pages and DOI, and can be used as they stand.
