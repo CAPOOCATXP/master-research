@@ -84,8 +84,27 @@ def add_page_field(paragraph) -> None:
 INLINE = re.compile(r"(\*\*.+?\*\*|`[^`]+`)")
 
 
+def smart_quotes(text: str) -> str:
+    """Turn straight double quotes into typographic pairs.
+
+    Markdown sources carry ASCII quotes, which look unprofessional in a submitted
+    document. Quotes are alternated within a paragraph, which is correct because
+    every paragraph here is passed in one call.
+    """
+    out = []
+    opening = True
+    for ch in text:
+        if ch == '"':
+            out.append("\u201c" if opening else "\u201d")
+            opening = not opening
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def add_rich_text(paragraph, text: str, *, latin: str, cjk: str, base_bold=False) -> None:
     """Add text to a paragraph, honouring **bold** and `code` spans."""
+    text = smart_quotes(text)
     for chunk in INLINE.split(text):
         if not chunk:
             continue
@@ -254,6 +273,22 @@ def add_table(doc: Document, rows: list) -> None:
         for ci, cell in enumerate(row.cells):
             cell.width = Cm(widths[ci])
 
+    # A long table split across a page break left its header row stranded alone at
+    # the bottom of the previous page while the body rows continued without one.
+    # Mark the first row as a repeating header and forbid rows from splitting.
+    hdr_trpr = table.rows[0]._tr.get_or_add_trPr()
+    tbl_header = OxmlElement("w:tblHeader")
+    tbl_header.set(qn("w:val"), "true")
+    hdr_trpr.append(tbl_header)
+    for row in table.rows:
+        trpr = row._tr.get_or_add_trPr()
+        no_split = OxmlElement("w:cantSplit")
+        no_split.set(qn("w:val"), "true")
+        trpr.append(no_split)
+    for cell in table.rows[0].cells:
+        for para in cell.paragraphs:
+            para.paragraph_format.keep_with_next = True
+
     doc.add_paragraph().paragraph_format.space_after = Pt(4)
     return table
 
@@ -368,10 +403,19 @@ def convert(md_path: Path, docx_path: Path, *, title_for_meta: str, author: str)
         # numbered list
         m = re.match(r"^(\d+)\.\s+(.*)$", stripped)
         if m:
-            p = doc.add_paragraph(style="List Number")
+            # Literal numbering rather than the List Number style. Word shares one
+            # numbering sequence across every paragraph using that style, so the
+            # fourth list in the document continued at 6, 7, 8 instead of
+            # restarting at 1. Writing the markdown number out keeps the source of
+            # truth in one place and removes the problem entirely.
+            p = doc.add_paragraph()
             p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
             p.paragraph_format.line_spacing = LINE_SPACING
+            p.paragraph_format.left_indent = Cm(0.95)
+            p.paragraph_format.first_line_indent = Cm(-0.55)
             p.paragraph_format.space_after = Pt(3)
+            num_run = p.add_run(f"{m.group(1)}. ")
+            set_run_fonts(num_run, LATIN_BODY, CJK_BODY)
             add_rich_text(p, m.group(2), latin=LATIN_BODY, cjk=CJK_BODY)
             stats["list_items"] += 1
             i += 1
