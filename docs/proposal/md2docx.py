@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 from docx import Document
@@ -221,9 +222,22 @@ def add_table(doc: Document, rows: list) -> None:
     # width and ran off the page).
     usable = 16.0
     min_w = 1.6
+
+    def disp_len(text: str) -> int:
+        """Approximate rendered width, counting CJK glyphs as two units.
+
+        Plain len() counts a Chinese character the same as a Latin letter, which
+        under-weights short Chinese columns; "决策保真" then wrapped to two lines
+        while a long English cell next to it kept its width.
+        """
+        w = 0
+        for ch in text:
+            w += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+        return w
+
     longest = []
     for c in range(ncols):
-        lens = [len(r[c]) if c < len(r) else 0 for r in rows]
+        lens = [disp_len(r[c]) if c < len(r) else 0 for r in rows]
         longest.append(max(1, max(lens)))
 
     if ncols * min_w >= usable:

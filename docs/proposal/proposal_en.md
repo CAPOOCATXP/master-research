@@ -16,7 +16,7 @@ The difficulty is that compression may quietly change the binary alarm decision 
 
 This project asks one concrete question. Given a frozen encoder, a frozen preprocessing pipeline, a frozen bank version and a frozen threshold, does compression change the alarm decision? If it does, can a conservative interval separate "certain normal", "certain alarm" and "must query the full bank", without ever turning "unknown" into "normal"?
 
-The method claims no new mathematics and reuses the triangle inequality. The edge stores only a small number of observed centres together with conservative coverage radii, and it derives an interval `[L, U]` around the true score. If the whole interval lies on one side of the threshold, the decision is made locally. If the interval straddles the threshold, the query is escalated to the full bank. If the bank is unavailable or the version does not match, the system returns "unresolved". The contract is decision preservation, not higher accuracy. A false alarm that is faithfully preserved remains a false alarm, and this limitation is stated throughout.
+The method claims no new mathematics and reuses the triangle inequality. The edge stores only a small number of observed centres together with conservative coverage radii, and it derives an interval `[L, U]` around the true score. If the whole interval lies on one side of the threshold, the decision is made locally. If the interval straddles the threshold, the query is escalated to the full bank. If the bank is unavailable or the version does not match, the system returns "unresolved". The contract is decision preservation, not higher accuracy. A false alarm that is faithfully preserved remains a false alarm.
 
 Evaluation uses public industrial datasets. The study measures decision disagreement, real defect recall, normal false-alarm rate, interval width, serialised bytes and end-to-end latency, with paired confidence intervals over five seeds. The expected outcome is not a better detector. It is a reproducible boundary that states how far the bank can be compressed before alarms stop matching, and where that boundary fails.
 
@@ -44,11 +44,11 @@ Therefore the project narrows the question to a single sentence. Given a frozen 
 
 Two hypotheses are proposed, and both can be falsified. The gap hypothesis (H1) states that at a useful storage reduction, for example ten percent, compression produces non-negligible alarm disagreement, reaching at least two percentage points on at least two categories. The mechanism hypothesis (H2) states that conservative intervals built from observed centres and coverage radii can decide a substantial share of images locally, at least twenty percent, without changing any decision.
 
-Both hypotheses may fail. If ordinary compression followed by recalibration already matches the useful trade-off, the gap does not exist and the work should become a careful empirical evaluation instead. If the intervals are so wide that nearly every image must escalate, the mechanism adds no value. Either negative outcome is a valid result, and both will be reported as they are.
+Both hypotheses may fail. If ordinary compression followed by recalibration already matches the useful trade-off, the gap does not exist and the work should become an empirical evaluation instead. If the intervals are so wide that nearly every image must escalate, the mechanism adds no value.
 
 ### 1.4 Scope
 
-The project targets decision preservation, not detection accuracy. Errors made by the reference detector are preserved faithfully, and compression does not repair them. Nor does it claim any new mathematical theorem, since the triangle inequality and metric balls are established tools. Test-set defect labels are never used to set the threshold or select parameters, because any such use invalidates the experiment. In addition, no physical edge device is currently available, so latency results come from workstation measurement only and are not extrapolated to a deployed line.
+The project targets decision preservation, not detection accuracy. Errors made by the reference detector are preserved faithfully, and compression does not repair them. Test-set defect labels are never used to set the threshold or select parameters. In addition, no physical edge device is currently available, so latency results come from workstation measurement only.
 
 ---
 
@@ -97,7 +97,7 @@ The decision rule is uniform: alarm if and only if `S_M(x) > t`, with equality t
 
 ### 3.2 Compression and Coverage Radii
 
-A greedy coreset selects `K` observed centres `c_j` from `M`. One point invites a shortcut and must be resisted: every centre has to be an actual bank vector, not a computed mean, otherwise the upper bound below does not hold. All bank vectors are assigned to their nearest centre, forming `K` cells, and each cell receives a coverage radius
+A greedy coreset selects `K` observed centres `c_j` from `M`. Every centre has to be an actual bank vector, not a computed mean, otherwise the upper bound below does not hold. All bank vectors are assigned to their nearest centre, forming `K` cells, and each cell receives a coverage radius
 
 ```
 r_j = max_{m ∈ C_j} d(m, c_j)
@@ -123,9 +123,7 @@ When neither condition holds, the interval straddles the threshold, and the quer
 
 ### 3.5 Numerical Reliability
 
-Floating-point error can break the interval, so distances are computed by direct subtraction rather than the expansion `|a|² + |b|² − 2ab`, because the expansion loses most of its significant digits in high dimensions. In one measurement, the expansion made thirty-one of 676 patches report `L > s`, meaning the lower bound exceeded the true value, which would fabricate a verified alarm that was never verified at all. Radii are rounded upwards and lower bounds downwards, so that the interval stays conservative.
-
-Nevertheless, an important limitation must be stated. With this guard in place, the result is only empirically decision-preserving. It is not a formal numerical certificate, and the report will use exactly this wording.
+Floating-point error can break the interval, so distances are computed by direct subtraction rather than the expansion `|a|² + |b|² − 2ab`, because the expansion loses most of its significant digits in high dimensions. In one measurement, the expansion made thirty-one of 676 patches report `L > s`, meaning the lower bound exceeded the true value, which would fabricate a verified alarm that was never verified at all. Radii are rounded upwards and lower bounds downwards, so that the interval stays conservative. With this guard in place, the result is empirically decision-preserving rather than formally certified.
 
 ### 3.6 Version Control
 
@@ -151,7 +149,7 @@ No image may appear in two roles. Few-shot variants with one, four or sixteen re
 
 ### 4.2 Baselines and Ablations
 
-The full bank serves as the reference detector and the gold standard. An equal-byte random bank represents the simplest form of cost reduction, while an equal-byte greedy bank corresponds to coreset subsampling in the style of PatchCore [1]. Compression followed by an independent recalibration tests whether simple recalibration already solves the problem; if it does, the value of this project is reduced, and that possibility is accepted in advance. Finally, a comparison of a global radius against per-cell radii forms the central ablation of the method itself.
+The full bank serves as the reference detector and the gold standard. An equal-byte random bank represents the simplest form of cost reduction, while an equal-byte greedy bank corresponds to coreset subsampling in the style of PatchCore [1]. Compression followed by an independent recalibration tests whether simple recalibration already solves the problem; if it does, the value of this project is reduced. Finally, a comparison of a global radius against per-cell radii forms the central ablation of the method itself.
 
 ### 4.3 Metrics
 
@@ -175,9 +173,8 @@ The complete pipeline already runs on a frozen WideResNet-50. The result does no
 | Violations `L > s_M` | 0 |
 | Violations `s_M > U` | 0 |
 
-Two facts hold at the same time. The interval is correct, with zero violations, yet it is wider than the signal itself. A mean width of 1.12 already exceeds the entire range of true scores, which means that local decisions can cover only part of the input distribution. This must be re-examined at realistic bank sizes in the main experiments, and the self-falsifying design is intentional.
+Two facts hold at the same time. The interval is correct, with zero violations, yet it is wider than the signal itself. A mean width of 1.12 already exceeds the entire range of true scores, which means that local decisions can cover only part of the input distribution. This must be re-examined at realistic bank sizes in the main experiments.
 
-One methodological error has already been corrected and is recorded here for transparency. An early version of the measurement used the bank's own patches as queries, which forced the true score to zero and made `L = 0` a tautology. The numbers above come from genuinely held-out queries.
 
 ---
 
@@ -198,9 +195,8 @@ One methodological error has already been corrected and is recorded here for tra
 
 ## 6. Expected Outcomes
 
-The expected outcomes are an auditable evaluation protocol that separates compression-induced decision disagreement from detection accuracy, a working screening system with explicit versioning and an unresolved state released as code, an empirical boundary stating at which compression ratio, feature dimension and lighting condition alarms still match, and an honest negative result with concrete evidence if the mechanism does not hold.
+The expected outcomes are an auditable evaluation protocol that separates compression-induced decision disagreement from detection accuracy, a working screening system with explicit versioning and an unresolved state released as code, an empirical boundary stating at which compression ratio, feature dimension and lighting condition alarms still match, and a negative result with concrete evidence if the mechanism does not hold.
 
-The project does not promise accuracy improvement, energy reduction, or production-line deployment performance.
 
 ---
 
@@ -208,9 +204,9 @@ The project does not promise accuracy improvement, energy reduction, or producti
 
 | Risk | Mitigation |
 |---|---|
-| The gap does not exist (H1 falsified) | Switch to a careful empirical evaluation and report the negative result |
+| The gap does not exist (H1 falsified) | Switch to an empirical evaluation and report the negative result |
 | Intervals too wide, nearly everything escalates (H2 falsified) | Add level refinement, or downgrade the claim to a cheap certificate on the normal side |
-| Simple recalibration already solves the problem | Report it honestly and treat recalibration as the strongest baseline |
+| Simple recalibration already solves the problem | Treat recalibration as the strongest baseline |
 | No edge device available | Report workstation measurements only and label them as simulation |
 | Dataset access restricted | Use public datasets and never use unauthorised data |
 
